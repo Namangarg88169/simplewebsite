@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Preformatted Text Example</title>
+</head>
+
+<body>
+    <h1>Preformatted Text</h1>
+    <pre>
+
+-----HIGHESTMAPPER------
+import java.io.IOException;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapred.*;
+
+public class HighestMapper extends MapReduceBase implements Mapper<LongWritable, Text, Text, IntWritable> {
+
+    public void map(LongWritable key, Text value, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException {
+        String line = value.toString();
+
+        if (line.trim().isEmpty()) {
+            return; // skip empty lines
+        }
+
+        String[] parts = line.split(",");
+        if (parts.length == 2) {
+            String city = parts[0].trim();
+            int temperature = Integer.parseInt(parts[1].trim());
+            output.collect(new Text(city), new IntWritable(temperature));
+        }
+    }
+}
+
+-------HIGHESTREDUCER-------
+import java.io.IOException;
+import java.util.Iterator;
+
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapred.*;
+
+public class HighestReducer extends MapReduceBase implements Reducer<Text, IntWritable, Text, IntWritable> {
+
+    public void reduce(Text key, Iterator<IntWritable> values, OutputCollector<Text, IntWritable> output, Reporter reporter) throws IOException {
+        int max_temp = 0;
+        while (values.hasNext()) {
+            int current = values.next().get();
+            if (max_temp < current)
+                max_temp = current;
+        }
+        output.collect(key, new IntWritable(max_temp / 10));
+    }
+}
+
+--------HIGHESTDRIVER---------
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.*;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapred.*;
+import org.apache.hadoop.util.*;
+
+public class HighestDriver extends Configured implements Tool {
+    public int run(String[] args) throws Exception {
+        JobConf conf = new JobConf(getConf(), HighestDriver.class);
+        conf.setJobName("HighestDriver");
+
+        conf.setOutputKeyClass(Text.class);
+        conf.setOutputValueClass(IntWritable.class);
+
+        conf.setMapperClass(HighestMapper.class);
+        conf.setReducerClass(HighestReducer.class);
+
+        Path inp = new Path(args[0]);
+        Path out = new Path(args[1]);
+
+        FileInputFormat.addInputPath(conf, inp);
+        FileOutputFormat.setOutputPath(conf, out);
+
+        JobClient.runJob(conf);
+        return 0;
+    }
+
+    public static void main(String[] args) throws Exception {
+        int res = ToolRunner.run(new Configuration(), new HighestDriver(), args);
+        System.exit(res);
+    }
+}
+
+---------------------------------------------------------------------
+Program – 4
+1). sudo mkdir -p /usr/jars
+2). sudo mv /media/sf_shared_win/hadoop-examples.jar /usr/jars
+3). hadoop jar /usr/jars/hadoop-examples.jar
+4). hadoop jar /usr/jars/hadoop-examples.jar wordcount shakespeare.txt out
+
+
+Program – 6
+1). cd ~/workspace/Wordcount/src
+2). ls
+3). javac -classpath “$(hadoop classpath)” -d . *.java
+4). jar -cvf HighestTemp.jar *.class
+5). hadoop fs -mkdir /input
+6). hadoop fs -put /home/cloudera/sample.txt /input/
+7). hadoop fs -ls /input
+8). hadoop jar HighestTemp.jar HighestDriver /input /output3
+9). hadoop fs -get /output3/part-00000 /home/cloudera/output_result.txt
+10). hadoop fs -ls /output
+11). hadoop fs -cat /output/part-00000 OR cat /home/cloudera/output_result.txt
+
+Program – 7
+1). pig
+2). A = LOAD ‘/input/maxtemppig’ USING PigStorage(‘ ‘) AS (Year:int,temperature:int,city:chararray); 
+(First,we have to upload maxtemppig file into hadoop or hdfs then paste address)
+3). DUMP A;
+4). all_data = GROUP A ALL;
+5). max_temp = FOREACH all_data GENERATE MAX(A.temperature) AS max_temperature;
+6). DUMP max_temp;
+--------------------------------------------
+
+Apache Pig Commands for Temperature Dataset
+1) Highest temperature per year
+--------------------------------
+-- Group by year
+grp_year = GROUP a BY year;
+max_temp_year = FOREACH grp_year GENERATE group AS year,MAX(a.temperature) AS max_temp;
+DUMP max_temp_year;
+
+2) Highest temperature city-wise
+--------------------------------
+-- Group by city
+grp_city = GROUP a BY city;
+-- Find max temperature per city
+max_temp_city = FOREACH grp_city GENERATE group AS city, MAX(a.temperature) AS max_temp;
+DUMP max_temp_city;
+
+
+3) Overall highest temperature
+-------------------------------
+-- Use GROUP ALL to treat all data as a single group
+grp_all = GROUP a ALL;
+-- Find overall max temperature
+max_temp_overall = FOREACH grp_all GENERATE MAX(a.temperature) AS max_temp;
+DUMP max_temp_overall;
+
+4) Highest temperature city-wise per year
+-----------------------------------------
+-- Group by both year and city
+grp_year_city = GROUP a BY (year, city);
+-- Find max temperature per (year, city)
+max_temp_year_city = FOREACH grp_year_city GENERATE group.year AS year, group.city AS city, MAX(a.temperature) AS max_temp;
+DUMP max_temp_year_city;
+
+------------------------------------------------------------------------------------------------------------------------
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+public class Words {
+public static void main(String[] args) throws FileNotFoundException, IOException {
+File file = new File("C:/Users/admin/Documents/hello.txt");
+BufferedReader bufferedReader = null;
+bufferedReader = new BufferedReader(new FileReader(file));
+String inputLine = null;
+Map<String, Integer> crunchifyMap = new HashMap<>();
+try {
+while ((inputLine = bufferedReader.readLine()) != null) {
+String[] words = inputLine.split("[ \n\t\r.,;:!?(){}]");
+for (int counter = 0; counter < words.length; counter++) {
+String key = words[counter].toLowerCase(); // remove 
+.toLowerCase for Case Sensitive result.
+if (key.length() > 0) {
+if (crunchifyMap.get(key) == null) {
+crunchifyMap.put(key, 1);
+} else {
+int value = 
+crunchifyMap.get(key).intValue();
+value++;
+crunchifyMap.put(key, value);
+}
+}
+}
+ 
+}
+Set<Map.Entry<String, Integer>> entrySet = crunchifyMap.entrySet();
+System.out.println("Words" + "\t\t" + "# of Occurances");
+for (Map.Entry<String, Integer> entry : entrySet) {
+System.out.println(entry.getKey() + "\t\t" + entry.getValue());
+}
+}
+catch (IOException error) {
+System.out.println("Invalid File");
+} finally {
+bufferedReader.close();
+}
+}
+
+    public static List<String> Words(Map<String, Integer> map, int n) {
+        List<CrunchifyComparable> l = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : map.entrySet())
+            l.add(new CrunchifyComparable(entry.getKey(), entry.getValue()));
+        Collections.sort(l);
+        List<String> list = new ArrayList<>();
+        for (CrunchifyComparable w : l.subList(0, n))
+            list.add(w.wordFromFile + ":" + w.numberOfOccurrence);
+        return list;
+    }
+}
+
+class CrunchifyComparable implements Comparable<CrunchifyComparable> {
+    public String wordFromFile;
+    public int numberOfOccurrence;
+
+    public CrunchifyComparable(String wordFromFile, int numberOfOccurrence) {
+        super();
+        this.wordFromFile = wordFromFile;
+        this.numberOfOccurrence = numberOfOccurrence;
+    }
+
+    @Override
+    public int compareTo(CrunchifyComparable arg0) {
+        int crunchifyCompare = Integer.compare(arg0.numberOfOccurrence,
+                this.numberOfOccurrence);
+        return crunchifyCompare != 0 ? crunchifyCompare : wordFromFile.compareTo(arg0.wordFromFile);
+    }
+
+    @Override
+    public int hashCode() {
+        final int uniqueNumber = 19;
+        int crunchifyResult = 9;
+        crunchifyResult = uniqueNumber * crunchifyResult + numberOfOccurrence;
+        crunchifyResult = uniqueNumber * crunchifyResult + ((wordFromFile == null) ? 0 : wordFromFile.hashCode());
+        return crunchifyResult;
+    }
+
+    @Override
+    public boolean equals(Object crunchifyObj) {
+        if (this == crunchifyObj)
+            return true;
+        if (crunchifyObj == null)
+            return false;
+        if (getClass() != crunchifyObj.getClass())
+            return false;
+        CrunchifyComparable other = (CrunchifyComparable) crunchifyObj;
+        if (numberOfOccurrence != other.numberOfOccurrence)
+            return false;
+        if (wordFromFile == null) {
+            if (other.wordFromFile != null)
+                return false;
+        } else if (!wordFromFile.equals(other.wordFromFile))
+            return false;
+        return true;
+    }
+}
+
+
+--------------------------------------------------------------------------------------------------------------
+| Command                                    | Description                                         |
+| ------------------------------------------ | --------------------------------------------------- |
+| `hdfs dfs -ls /`                           | Lists files and directories in the root directory   |
+| `hdfs dfs -ls -R /`                        | Recursively list all files                          |
+| `hdfs dfs -mkdir /dir`                     | Creates a directory                                 |
+| `hdfs dfs -mkdir -p /dir/subdir`           | Creates parent directories as needed                |
+| `hdfs dfs -put file.txt /dir/`             | Uploads a local file to HDFS                        |
+| `hdfs dfs -copyFromLocal file.txt /dir/`   | Another way to upload a file                        |
+| `hdfs dfs -get /dir/file.txt .`            | Downloads a file from HDFS to the local file system |
+| `hdfs dfs -copyToLocal /dir/file.txt .`    | Another way to download a file                      |
+| `hdfs dfs -cat /dir/file.txt`              | Displays the contents of a file                     |
+| `hdfs dfs -tail /dir/file.txt`             | Shows the last 1 KB of a file                       |
+| `hdfs dfs -rm /dir/file.txt`               | Deletes a file                                      |
+| `hdfs dfs -rm -r /dir/`                    | Deletes a directory recursively                     |
+| `hdfs dfs -rmdir /dir/`                    | Removes an empty directory                          |
+| `hdfs dfs -du /dir/`                       | Shows the size of each file in a directory          |
+| `hdfs dfs -du -s /dir/`                    | Shows the total size of a directory                 |
+| `hdfs dfs -chmod 755 /dir/file.txt`        | Changes permissions                                 |
+| `hdfs dfs -chown user:group /dir/file.txt` | Changes ownership                                   |
+| `hdfs dfs -mv /old /new`                   | Moves or renames a file/directory                   |
+| `hdfs dfs -cp /src /dest`                  | Copies file/directory                               |
+
+
+
+--------------------------------------------------------------------------------------------------------------
+
+-- Load the input file from HDFS
+lines = LOAD 'input.txt' AS (line:chararray);
+
+-- Split each line into words
+words = FOREACH lines GENERATE FLATTEN(TOKENIZE(line)) AS word;
+
+-- Group the words
+grouped_words = GROUP words BY word;
+
+-- Count the number of times each word occurs
+word_count = FOREACH grouped_words GENERATE group AS word, COUNT(words) AS count;
+
+-- Store the result
+STORE word_count INTO 'output_wordcount';
+--------------------------------------------------------------------------------------------------------------
+
+# Step 0: Upload file using Colab
+from google.colab import files
+
+uploaded = files.upload()  # Prompts user to upload file
+filename = list(uploaded.keys())[0]  # Get the uploaded filename
+
+# Step 1: Import SparkSession
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("WordCountApp") \
+    .getOrCreate()
+
+# Step 2: Load uploaded file as RDD
+text_rdd = spark.sparkContext.textFile(filename)
+
+# Step 3: Word Count logic
+word_counts = (
+    text_rdd
+    .flatMap(lambda line: line.split())
+    .map(lambda word: (word, 1))
+    .reduceByKey(lambda a, b: a + b)
+)
+
+# Step 4: Display result
+for word, count in word_counts.collect():
+    print(f"{word}: {count}")
+
+
+    --------------------------------------------------------------------------------------------------------------
+
+    from pyspark import SparkContext
+
+sc = SparkContext("local", "MaxTemperature")
+
+data = [
+    "Delhi 42",
+    "Mumbai 35",
+    "Chennai 38",
+    "Delhi 45",
+    "Mumbai 37",
+    "Chennai 41"
+]
+
+rdd = sc.parallelize(data)
+
+city_temps = (
+    rdd.map(lambda line: line.split())
+       .map(lambda parts: (parts[0], int(parts[1])))
+       .reduceByKey(lambda a, b: max(a, b))
+)
+
+for city, maxtemp in city_temps.collect():
+    print(f"{city}: {maxtemp}°C")
+
+sc.stop()
+
+--------------------------------------------------------------------------------------------------------------
+use myDatabase
+show dbs
+db.createCollection("students")
+db.students.insertOne({ name: "Ali", age: 22, grade: "A" })
+
+db.students.insertMany([
+  { name: "Sara", age: 21, grade: "B" },
+  { name: "John", age: 23, grade: "A" }
+])
+db.students.find({ grade: "A" })
+db.students.updateOne({ name: "Ali" }, { $set: { grade: "A+" } })
+db.students.deleteOne({ name: "John" })
+db.dropDatabase()
+
+
+--------------------------------------------
+hbase shell
+hbase shell
+create 'students', 'personal', 'academic'
+describe 'students'
+put 'students', 'row1', 'personal:name', 'Ali'
+put 'students', 'row1', 'personal:age', '22'
+put 'students', 'row1', 'academic:grade', 'A'
+get 'students', 'row1'
+delete 'students', 'row1', 'academic:grade'
+drop 'students'
+
+  </pre>
+</body>
+
+</html>
